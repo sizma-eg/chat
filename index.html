@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>chat+</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#075e54">
+<style>
+:root{--g:#075e54;--g2:#128c7e;--g3:#25d366;--bg:#efeae2;--me:#d9fdd3;--other:#fff;--line:#e9edef;--txt:#111b21;--sub:#667781}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;color:var(--txt);background:#d1d7db}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* auth */
+#auth{height:100%;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(var(--g) 0 220px,#d1d7db 220px)}
+.card{background:#fff;border-radius:14px;padding:26px;width:100%;max-width:380px;box-shadow:0 6px 24px rgba(0,0,0,.15)}
+.logo{text-align:center;font-size:30px;font-weight:800;color:var(--g);margin-bottom:4px}
+.logo b{color:var(--g3)}
+.tag{text-align:center;color:var(--sub);font-size:14px;margin-bottom:18px}
+.tabs{display:flex;background:#f0f2f5;border-radius:10px;padding:4px;margin-bottom:16px}
+.tabs button{flex:1;padding:9px;border-radius:8px;font-weight:600;color:var(--sub)}
+.tabs button.on{background:#fff;color:var(--g);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.card input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;outline:none;font-size:16px}
+.card input:focus{border-color:var(--g2)}
+.btn{width:100%;padding:12px;background:var(--g2);color:#fff;border-radius:10px;font-weight:700;font-size:16px}
+.btn:disabled{opacity:.6}
+.err{color:#d93025;font-size:14px;min-height:20px;margin-bottom:8px}
+
+/* app */
+#app{height:100%;display:grid;grid-template-columns:380px 1fr;max-width:1500px;margin:0 auto;background:#fff;box-shadow:0 0 20px rgba(0,0,0,.15)}
+#side{display:flex;flex-direction:column;border-inline-end:1px solid var(--line);min-height:0;background:#fff}
+.top{background:var(--g);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.top h2{font-size:20px}
+.top .who{font-size:12px;opacity:.85}
+.top button{padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.15);font-size:13px}
+.search{padding:10px;display:flex;gap:8px;border-bottom:1px solid var(--line)}
+.search input{flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:10px;outline:none;background:#f0f2f5;min-width:0;direction:ltr;text-align:right}
+.search button{background:var(--g2);color:#fff;border-radius:10px;padding:0 14px;font-weight:700}
+.smsg{padding:6px 14px;font-size:13px;color:#d93025}
+.notifbar{background:#fff8d6;padding:10px 14px;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line)}
+.notifbar button{background:var(--g2);color:#fff;padding:6px 12px;border-radius:8px;font-weight:600;white-space:nowrap}
+#list{flex:1;overflow-y:auto}
+.row{display:flex;gap:12px;align-items:center;padding:12px 14px;cursor:pointer;border-bottom:1px solid #f3f4f5}
+.row:hover,.row.on{background:#f5f6f6}
+.av{width:46px;height:46px;border-radius:50%;background:var(--g2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex:none}
+.rm{flex:1;min-width:0}
+.rt{display:flex;justify-content:space-between;gap:8px}
+.rt b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt span{font-size:12px;color:var(--sub);white-space:nowrap}
+.rb{display:flex;justify-content:space-between;gap:8px;margin-top:3px;align-items:center}
+.rb p{font-size:14px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{background:var(--g3);color:#fff;border-radius:12px;min-width:22px;height:22px;padding:0 6px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.empty{padding:30px 20px;text-align:center;color:var(--sub);line-height:1.8}
+
+#main{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--bg)}
+#welcome{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--sub);gap:8px;text-align:center;padding:20px}
+#welcome .logo{font-size:44px}
+#chat{flex:1;display:flex;flex-direction:column;min-height:0}
+.ch{background:#f0f2f5;padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding-top:calc(10px + env(safe-area-inset-top,0px))}
+.ch .back{display:none;font-size:22px;padding:0 6px}
+.ch b{font-size:16px}
+#msgs{flex:1;overflow-y:auto;padding:14px 8%;display:flex;flex-direction:column;gap:4px}
+.m{max-width:75%;padding:7px 10px 5px;border-radius:10px;font-size:15px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.1);word-wrap:break-word;overflow-wrap:anywhere;white-space:pre-wrap}
+.m.me{background:var(--me);align-self:flex-start;border-top-right-radius:2px}
+.m.ot{background:var(--other);align-self:flex-end;border-top-left-radius:2px}
+.m small{display:flex;gap:4px;justify-content:flex-end;font-size:11px;color:var(--sub);margin-top:2px;white-space:normal}
+.tick.r{color:#34b7f1}
+.composer{background:#f0f2f5;padding:10px;display:flex;gap:8px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.composer input{flex:1;padding:12px 14px;border:0;border-radius:22px;outline:none;min-width:0;font-size:16px}
+.composer button{background:var(--g2);color:#fff;width:46px;height:46px;border-radius:50%;font-size:20px;flex:none}
+.net{background:#fde8e8;color:#b42318;text-align:center;font-size:13px;padding:4px}
+
+@media(max-width:760px){
+ #app{grid-template-columns:1fr}
+ #main{display:none}
+ #app.open #side{display:none}
+ #app.open #main{display:flex}
+ .ch .back{display:block}
+ #msgs{padding:12px 10px}
+}
+</style>
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div id="auth">
+  <div class="card">
+    <div class="logo">chat<b>+</b></div>
+    <div class="tag">كلّم صحابك في أي وقت</div>
+    <div class="tabs">
+      <button id="tabLogin" class="on">دخول</button>
+      <button id="tabReg">حساب جديد</button>
+    </div>
+    <input id="fName" placeholder="الاسم" class="hidden" autocomplete="name">
+    <input id="fUser" placeholder="اسم المستخدم (إنجليزي)" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false">
+    <input id="fPass" type="password" placeholder="كلمة السر" dir="ltr" autocomplete="current-password">
+    <div class="err" id="authErr"></div>
+    <button class="btn" id="authBtn">دخول</button>
+  </div>
+</div>
+
+<!-- التطبيق -->
+<div id="app" class="hidden">
+  <aside id="side">
+    <div class="top">
+      <div><h2>chat+</h2><div class="who" id="who"></div></div>
+      <button id="logout">خروج</button>
+    </div>
+    <div class="notifbar hidden" id="notifBar">
+      <span>فعّل الإشعارات عشان تعرف لما حد يبعتلك رسالة</span>
+      <button id="notifBtn">تفعيل</button>
+    </div>
+    <div class="search">
+      <input id="sUser" placeholder="ابحث بـ username صاحبك" autocapitalize="off" spellcheck="false">
+      <button id="sBtn">إضافة</button>
+    </div>
+    <div class="smsg" id="sMsg"></div>
+    <div id="list"></div>
+  </aside>
+
+  <section id="main">
+    <div id="welcome">
+      <div class="logo">chat<b>+</b></div>
+      <p>اختار محادثة أو ضيف صاحبك بالـ username وابدأ كلامكم</p>
+    </div>
+    <div id="chat" class="hidden">
+      <div class="ch">
+        <button class="back" id="back">→</button>
+        <div class="av" id="chAv"></div>
+        <b id="chName"></b>
+      </div>
+      <div class="net hidden" id="net">مفيش إنترنت — الرسايل هتتبعت أول ما النت يرجع</div>
+      <div id="msgs"></div>
+      <div class="composer">
+        <input id="txt" placeholder="اكتب رسالة" autocomplete="off">
+        <button id="send" aria-label="إرسال">➤</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC3gozRr19Dq9Gsg1GLHyEgjztOd9GE03A",
+  authDomain: "admin-d6942.firebaseapp.com",
+  projectId: "admin-d6942",
+  storageBucket: "admin-d6942.firebasestorage.app",
+  messagingSenderId: "460674472375",
+  appId: "1:460674472375:web:fd97ff4e9dfc16afcff032",
+  measurementId: "G-XLM821BRW1"
+};
+// مفتاح الإشعارات وقت ما التطبيق مقفول (اختياري) - من Firebase Console > Project settings > Cloud Messaging > Web Push certificates
+const VAPID_KEY = "";
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const FV = firebase.firestore.FieldValue;
+db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+
+const $ = id => document.getElementById(id);
+let me = null, myName = '', active = null, unsubMsgs = null, unsubChats = null;
+let chats = {}, firstSnap = true, registering = false, lastNotified = {};
+let swReg = null;
+
+/* ---------- تسجيل الدخول ---------- */
+let mode = 'login';
+function setMode(m) {
+  mode = m;
+  $('tabLogin').classList.toggle('on', m === 'login');
+  $('tabReg').classList.toggle('on', m === 'reg');
+  $('fName').classList.toggle('hidden', m !== 'reg');
+  $('authBtn').textContent = m === 'login' ? 'دخول' : 'إنشاء حساب';
+  $('authErr').textContent = '';
+}
+$('tabLogin').onclick = () => setMode('login');
+$('tabReg').onclick = () => setMode('reg');
+
+const mail = u => u + '@chatplus.app';
+function authMsg(e) {
+  const c = e.code || e.message || '';
+  if (c.includes('email-already-in-use') || c === 'taken') return 'اسم المستخدم ده مستخدم، جرّب غيره';
+  if (c.includes('user-not-found') || c.includes('wrong-password') || c.includes('invalid-credential')) return 'اسم المستخدم أو كلمة السر غلط';
+  if (c.includes('weak-password')) return 'كلمة السر ضعيفة (6 حروف على الأقل)';
+  if (c.includes('network')) return 'مفيش إنترنت';
+  if (c.includes('operation-not-allowed')) return 'فعّل Email/Password من Firebase Authentication';
+  return 'حصلت مشكلة: ' + c;
+}
+
+$('authBtn').onclick = async () => {
+  const u = $('fUser').value.trim().toLowerCase();
+  const p = $('fPass').value;
+  const n = $('fName').value.trim();
+  const err = $('authErr'); err.textContent = '';
+  if (!/^[a-z0-9_]{3,20}$/.test(u)) { err.textContent = 'اسم المستخدم: حروف إنجليزي وأرقام و _ فقط (3 إلى 20)'; return; }
+  if (p.length < 6) { err.textContent = 'كلمة السر 6 حروف على الأقل'; return; }
+  if (mode === 'reg' && !n) { err.textContent = 'اكتب اسمك'; return; }
+  $('authBtn').disabled = true;
+  try {
+    if (mode === 'login') {
+      await auth.signInWithEmailAndPassword(mail(u), p);
+    } else {
+      registering = true;
+      const cred = await auth.createUserWithEmailAndPassword(mail(u), p);
+      const uid = cred.user.uid;
+      try {
+        await db.runTransaction(async t => {
+          const ref = db.doc('usernames/' + u);
+          if ((await t.get(ref)).exists) throw new Error('taken');
+          t.set(ref, { uid });
+          t.set(db.doc('users/' + uid), { name: n, username: u, tokens: [] });
+        });
+      } catch (e) { await cred.user.delete().catch(() => {}); throw e; }
+      registering = false;
+      startApp(cred.user);
+    }
+  } catch (e) { registering = false; err.textContent = authMsg(e); }
+  $('authBtn').disabled = false;
+};
+$('fPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('authBtn').click(); });
+
+auth.onAuthStateChanged(u => {
+  if (registering) return;
+  if (u) startApp(u); else showAuth();
+});
+$('logout').onclick = async () => {
+  if (unsubChats) unsubChats();
+  if (unsubMsgs) unsubMsgs();
+  await auth.signOut();
+};
+
+function showAuth() {
+  me = null; active = null; chats = {}; firstSnap = true;
+  $('app').classList.add('hidden');
+  $('auth').classList.remove('hidden');
+  document.title = 'chat+';
+}
+
+/* ---------- بدء التطبيق ---------- */
+async function startApp(u) {
+  me = u;
+  $('auth').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  try {
+    const s = await db.doc('users/' + u.uid).get();
+    myName = s.exists ? s.data().name : u.email.split('@')[0];
+  } catch (e) { myName = u.email.split('@')[0]; }
+  $('who').textContent = myName + ' (@' + u.email.split('@')[0] + ')';
+  firstSnap = true; lastNotified = {};
+  listenChats();
+  initNotifications();
+}
+
+/* ---------- قائمة المحادثات ---------- */
+function listenChats() {
+  if (unsubChats) unsubChats();
+  unsubChats = db.collection('chats').where('members', 'array-contains', me.uid).onSnapshot(snap => {
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id, d = ch.doc.data({ serverTimestamps: 'estimate' });
+      if (ch.type === 'removed') { delete chats[id]; return; }
+      chats[id] = d;
+      if (firstSnap || snap.metadata.hasPendingWrites) return;
+      const stamp = d.lastAt && d.lastAt.toMillis ? d.lastAt.toMillis() : 0;
+      const incoming = d.lastFrom && d.lastFrom !== me.uid && ((d.unread || {})[me.uid] || 0) > 0;
+      const watching = active && active.id === id && !document.hidden;
+      if (incoming && !watching && lastNotified[id] !== stamp) {
+        lastNotified[id] = stamp;
+        notify(id, (d.names || {})[d.lastFrom] || 'رسالة جديدة', d.last || '');
+      }
+    });
+    firstSnap = false;
+    renderList(); updateBadge();
+  }, err => console.error(err));
+}
+
+const otherOf = (id, d) => d.members.find(x => x !== me.uid);
+const fmtTime = ts => {
+  if (!ts || !ts.toDate) return '';
+  const d = ts.toDate(), now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+};
+
+function renderList() {
+  const list = $('list'); list.innerHTML = '';
+  const ids = Object.keys(chats).sort((a, b) => {
+    const ta = chats[a].lastAt ? chats[a].lastAt.toMillis() : 0, tb = chats[b].lastAt ? chats[b].lastAt.toMillis() : 0;
+    return tb - ta;
+  });
+  if (!ids.length) {
+    list.innerHTML = '<div class="empty">لسه مفيش محادثات.<br>اكتب username صاحبك فوق واضغط "إضافة".</div>';
+    return;
+  }
+  ids.forEach(id => {
+    const d = chats[id], o = otherOf(id, d), name = (d.names || {})[o] || '؟';
+    const un = (d.unread || {})[me.uid] || 0;
+    const row = document.createElement('div');
+    row.className = 'row' + (active && active.id === id ? ' on' : '');
+    row.innerHTML = '<div class="av"></div><div class="rm"><div class="rt"><b></b><span></span></div><div class="rb"><p></p></div></div>';
+    row.querySelector('.av').textContent = name.trim().charAt(0);
+    row.querySelector('b').textContent = name;
+    row.querySelector('.rt span').textContent = fmtTime(d.lastAt);
+    row.querySelector('p').textContent = d.last ? ((d.lastFrom === me.uid ? 'أنت: ' : '') + d.last) : 'ابدأ المحادثة';
+    if (un > 0) { const b = document.createElement('div'); b.className = 'badge'; b.textContent = un > 99 ? '99+' : un; row.querySelector('.rb').appendChild(b); }
+    row.onclick = () => openChat(id, o, name);
+    list.appendChild(row);
+  });
+}
+
+function updateBadge() {
+  let n = 0; Object.values(chats).forEach(d => n += (d.unread || {})[me.uid] || 0);
+  document.title = n > 0 ? '(' + n + ') chat+' : 'chat+';
+  if (navigator.setAppBadge) { n > 0 ? navigator.setAppBadge(n).catch(() => {}) : navigator.clearAppBadge().catch(() => {}); }
+}
+
+/* ---------- إضافة صديق ---------- */
+$('sBtn').onclick = addFriend;
+$('sUser').addEventListener('keydown', e => { if (e.key === 'Enter') addFriend(); });
+async function addFriend() {
+  const u = $('sUser').value.trim().toLowerCase().replace('@', '');
+  const msg = $('sMsg'); msg.textContent = '';
+  if (!u) return;
+  if (u === me.email.split('@')[0]) { msg.textContent = 'ده اليوزر بتاعك 😄'; return; }
+  try {
+    const s = await db.doc('usernames/' + u).get();
+    if (!s.exists) { msg.textContent = 'مفيش حد بالاسم ده'; return; }
+    const fid = s.data().uid;
+    const fs = await db.doc('users/' + fid).get();
+    const fname = fs.exists ? fs.data().name : u;
+    const id = [me.uid, fid].sort().join('_');
+    const cref = db.doc('chats/' + id);
+    const cs = await cref.get();
+    if (!cs.exists) {
+      await cref.set({ members: [me.uid, fid], names: { [me.uid]: myName, [fid]: fname }, last: '', lastFrom: '', lastAt: FV.serverTimestamp(), unread: { [me.uid]: 0, [fid]: 0 } });
+    }
+    $('sUser').value = '';
+    openChat(id, fid, fname);
+  } catch (e) { msg.textContent = 'مقدرتش أبحث، تأكد من النت'; console.error(e); }
+}
+
+/* ---------- المحادثة ---------- */
+function openChat(id, other, name) {
+  active = { id, other, name };
+  $('welcome').classList.add('hidden');
+  $('chat').classList.remove('hidden');
+  $('app').classList.add('open');
+  $('chName').textContent = name;
+  $('chAv').textContent = name.trim().charAt(0);
+  $('msgs').innerHTML = '';
+  if (unsubMsgs) unsubMsgs();
+  unsubMsgs = db.collection('chats/' + id + '/messages').orderBy('createdAt', 'asc').limitToLast(300).onSnapshot(snap => {
+    renderMsgs(snap);
+    markRead(snap);
+  }, err => console.error(err));
+  clearUnread(id);
+  renderList();
+  setTimeout(() => $('txt').focus(), 50);
+}
+
+$('back').onclick = () => {
+  active = null;
+  if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+  $('app').classList.remove('open');
+  $('chat').classList.add('hidden');
+  $('welcome').classList.remove('hidden');
+  renderList();
+};
+
+function renderMsgs(snap) {
+  const box = $('msgs');
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+  box.innerHTML = '';
+  snap.docs.forEach(doc => {
+    const m = doc.data({ serverTimestamps: 'estimate' });
+    const mine = m.from === me.uid;
+    const el = document.createElement('div');
+    el.className = 'm ' + (mine ? 'me' : 'ot');
+    const t = document.createElement('span'); t.textContent = m.text; el.appendChild(t);
+    const s = document.createElement('small');
+    const time = document.createElement('span');
+    time.textContent = m.createdAt ? m.createdAt.toDate().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
+    s.appendChild(time);
+    if (mine) {
+      const k = document.createElement('span');
+      k.className = 'tick' + (m.read ? ' r' : '');
+      k.textContent = doc.metadata.hasPendingWrites ? '🕓' : (m.read ? '✓✓' : '✓');
+      s.appendChild(k);
+    }
+    el.appendChild(s);
+    box.appendChild(el);
+  });
+  if (nearBottom || snap.docChanges().some(c => c.type === 'added' && c.doc.data().from === me.uid)) box.scrollTop = box.scrollHeight;
+  else if (!box.dataset.init) { box.scrollTop = box.scrollHeight; }
+  box.dataset.init = '1';
+}
+
+function markRead(snap) {
+  if (document.hidden || !active) return;
+  const batch = db.batch(); let n = 0;
+  snap.docs.forEach(doc => {
+    const m = doc.data();
+    if (m.from !== me.uid && !m.read && !doc.metadata.hasPendingWrites) { batch.update(doc.ref, { read: true }); n++; }
+  });
+  if (n) batch.commit().catch(() => {});
+  clearUnread(active.id);
+}
+function clearUnread(id) {
+  const d = chats[id];
+  if (d && ((d.unread || {})[me.uid] || 0) > 0 && !document.hidden) {
+    db.doc('chats/' + id).update({ ['unread.' + me.uid]: 0 }).catch(() => {});
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && active) { clearUnread(active.id); db.collection('chats/' + active.id + '/messages').where('read', '==', false).get().then(s => markRead(s)).catch(() => {}); }
+});
+
+/* ---------- الإرسال ---------- */
+async function sendMsg() {
+  const text = $('txt').value.trim();
+  if (!text || !active) return;
+  $('txt').value = '';
+  const { id, other } = active;
+  const mref = db.collection('chats/' + id + '/messages').doc();
+  const batch = db.batch();
+  batch.set(mref, { text, from: me.uid, createdAt: FV.serverTimestamp(), read: false });
+  batch.update(db.doc('chats/' + id), { last: text.slice(0, 120), lastFrom: me.uid, lastAt: FV.serverTimestamp(), ['unread.' + other]: FV.increment(1) });
+  batch.commit().catch(e => console.error(e));
+}
+$('send').onclick = sendMsg;
+$('txt').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
+
+/* ---------- حالة الإنترنت ---------- */
+function netState() { $('net').classList.toggle('hidden', navigator.onLine); }
+addEventListener('online', netState); addEventListener('offline', netState); netState();
+
+/* ---------- الإشعارات ---------- */
+function beep() {
+  try {
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    const o = c.createOscillator(), g = c.createGain();
+    o.connect(g); g.connect(c.destination); o.type = 'sine'; o.frequency.value = 880;
+    g.gain.setValueAtTime(.18, c.currentTime); g.gain.exponentialRampToValueAtTime(.001, c.currentTime + .3);
+    o.start(); o.stop(c.currentTime + .3);
+  } catch (e) {}
+}
+
+async function notify(chatId, title, body) {
+  beep();
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = { body, tag: chatId, icon: 'icon.svg', badge: 'icon.svg', lang: 'ar', dir: 'rtl', data: { chatId } };
+  try {
+    const reg = swReg || (navigator.serviceWorker && await navigator.serviceWorker.getRegistration());
+    if (reg) { await reg.showNotification(title, opts); return; }
+    const n = new Notification(title, opts);
+    n.onclick = () => { focus(); n.close(); };
+  } catch (e) { try { new Notification(title, opts); } catch (_) {} }
+}
+
+async function initNotifications() {
+  if ('serviceWorker' in navigator) {
+    try { swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js'); } catch (e) { console.warn('sw', e); }
+  }
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') $('notifBar').classList.remove('hidden');
+  if (Notification.permission === 'granted') setupPush();
+}
+$('notifBtn').onclick = async () => {
+  const p = await Notification.requestPermission();
+  $('notifBar').classList.add('hidden');
+  if (p === 'granted') { setupPush(); notify('x', 'chat+', 'الإشعارات اشتغلت ✅'); }
+};
+
+async function setupPush() {
+  if (!VAPID_KEY || !swReg) return;
+  try {
+    if (!(await firebase.messaging.isSupported())) return;
+    const token = await firebase.messaging().getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+    if (token) await db.doc('users/' + me.uid).update({ tokens: FV.arrayUnion(token) });
+  } catch (e) { console.warn('push', e); }
+}
+</script>
+</body>
+</html>
