@@ -72,6 +72,18 @@ input{font:inherit;color:inherit}
 .composer{background:#f0f2f5;padding:10px;display:flex;gap:8px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
 .composer input{flex:1;padding:12px 14px;border:0;border-radius:22px;outline:none;min-width:0;font-size:16px}
 .composer button{background:var(--g2);color:#fff;width:46px;height:46px;border-radius:50%;font-size:20px;flex:none}
+.composer .ib{background:none;color:var(--sub);width:40px;height:46px;font-size:24px;border-radius:50%}
+.emo{background:#f0f2f5;border-top:1px solid var(--line);height:260px;display:flex;flex-direction:column}
+.emo .et{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;flex:none}
+.emo .et button{flex:1;min-width:46px;padding:8px 0;font-size:22px;opacity:.55;border-bottom:3px solid transparent}
+.emo .et button.on{opacity:1;border-bottom-color:var(--g2)}
+.emo .eg{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));padding:6px;gap:2px;align-content:start}
+.emo .eg button{font-size:27px;padding:4px;border-radius:8px}
+.emo .eg button:hover{background:#e1e5e8}
+.m img{display:block;width:260px;max-width:100%;height:auto;border-radius:8px;cursor:zoom-in;margin-bottom:3px;background:#dde}
+.m.big>span:first-of-type{font-size:44px;line-height:1.25}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:50;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+#lb img{max-width:96%;max-height:92%;border-radius:6px}
 .net{background:#fde8e8;color:#b42318;text-align:center;font-size:13px;padding:4px}
 
 @media(max-width:760px){
@@ -135,13 +147,21 @@ input{font:inherit;color:inherit}
       </div>
       <div class="net hidden" id="net">مفيش إنترنت — الرسايل هتتبعت أول ما النت يرجع</div>
       <div id="msgs"></div>
+      <div class="emo hidden" id="emo">
+        <div class="et" id="emoTabs"></div>
+        <div class="eg" id="emoGrid"></div>
+      </div>
       <div class="composer">
+        <button class="ib" id="emoBtn" aria-label="إيموجي">😊</button>
+        <button class="ib" id="imgBtn" aria-label="صورة">📷</button>
         <input id="txt" placeholder="اكتب رسالة" autocomplete="off">
         <button id="send" aria-label="إرسال">➤</button>
       </div>
+      <input type="file" id="file" accept="image/*" class="hidden">
     </div>
   </section>
 </div>
+<div id="lb" class="hidden"><img id="lbImg" alt=""></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -356,7 +376,7 @@ function openChat(id, other, name) {
   $('chAv').textContent = name.trim().charAt(0);
   $('msgs').innerHTML = '';
   if (unsubMsgs) unsubMsgs();
-  unsubMsgs = db.collection('chats/' + id + '/messages').orderBy('createdAt', 'asc').limitToLast(300).onSnapshot(snap => {
+  unsubMsgs = db.collection('chats/' + id + '/messages').orderBy('createdAt', 'asc').limitToLast(80).onSnapshot(snap => {
     renderMsgs(snap);
     markRead(snap);
   }, err => console.error(err));
@@ -383,7 +403,17 @@ function renderMsgs(snap) {
     const mine = m.from === me.uid;
     const el = document.createElement('div');
     el.className = 'm ' + (mine ? 'me' : 'ot');
-    const t = document.createElement('span'); t.textContent = m.text; el.appendChild(t);
+    if (m.image) {
+      const im = document.createElement('img');
+      im.src = m.image; im.alt = 'صورة';
+      if (m.w && m.h) im.style.aspectRatio = m.w + ' / ' + m.h;
+      im.onclick = () => openLightbox(m.image);
+      el.appendChild(im);
+    }
+    if (m.text) {
+      const t = document.createElement('span'); t.textContent = m.text; el.appendChild(t);
+      if (!m.image && isBigEmoji(m.text)) el.classList.add('big');
+    }
     const s = document.createElement('small');
     const time = document.createElement('span');
     time.textContent = m.createdAt ? m.createdAt.toDate().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -423,19 +453,112 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ---------- الإرسال ---------- */
-async function sendMsg() {
+function sendPayload(p) {
+  if (!active) return;
+  const { id, other } = active;
+  const mref = db.collection('chats/' + id + '/messages').doc();
+  const data = { text: p.text || '', from: me.uid, createdAt: FV.serverTimestamp(), read: false };
+  if (p.image) { data.image = p.image; data.w = p.w; data.h = p.h; }
+  const preview = p.image ? '📷 صورة' : data.text.slice(0, 120);
+  const batch = db.batch();
+  batch.set(mref, data);
+  batch.update(db.doc('chats/' + id), { last: preview, lastFrom: me.uid, lastAt: FV.serverTimestamp(), ['unread.' + other]: FV.increment(1) });
+  batch.commit().catch(e => { console.error(e); alert('الرسالة ماتبعتتش: ' + (e.code || e.message)); });
+}
+function sendMsg() {
   const text = $('txt').value.trim();
   if (!text || !active) return;
   $('txt').value = '';
-  const { id, other } = active;
-  const mref = db.collection('chats/' + id + '/messages').doc();
-  const batch = db.batch();
-  batch.set(mref, { text, from: me.uid, createdAt: FV.serverTimestamp(), read: false });
-  batch.update(db.doc('chats/' + id), { last: text.slice(0, 120), lastFrom: me.uid, lastAt: FV.serverTimestamp(), ['unread.' + other]: FV.increment(1) });
-  batch.commit().catch(e => console.error(e));
+  sendPayload({ text });
 }
 $('send').onclick = sendMsg;
 $('txt').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
+
+/* ---------- الإيموجي ---------- */
+const EMO = [
+  ['😀', '😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🫣 🤭 🫢 🤫 🫠 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾'],
+  ['👋', '👋 🤚 🖐️ ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦵 🦶 👂 👃 🧠 👀 👁️ 👅 👄 🙋 🙆 🙅 🤦 🤷 💁 🙇 🤰 👶 👦 👧 👨 👩 🧔 👴 👵 💃 🕺 🏃 🚶 👫 👬 👭 💏 💑'],
+  ['❤️', '❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ♥️ 💋 💯 💢 💥 💫 💦 💨 💬 💭 💤 ✨ ⭐ 🌟 ⚡ 🔥 🌈 ☀️ ⛅ ☁️ ❄️ ✅ ❌ ⭕ ❓ ❗ ‼️ ⚠️ 🔞 ♻️ ➕ ➖ ✔️ 🔔 🔕 🎵 🎶'],
+  ['🐶', '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐜 🐢 🐍 🦎 🐙 🦑 🦀 🐠 🐟 🐬 🐳 🦈 🐊 🐅 🐘 🦒 🐪 🐫 🐑 🐐 🌵 🌴 🌳 🌲 🌱 🌿 🍀 🌹 🌺 🌸 🌼 🌻 🌷 🍁 🍂 🌍 🌙 🌊'],
+  ['🍕', '🍎 🍏 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🥑 🥦 🥕 🌽 🌶️ 🥔 🍞 🥐 🧀 🥚 🍳 🥞 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥙 🍝 🍜 🍲 🍛 🍣 🍱 🍤 🍙 🍚 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🍫 🍬 🍭 🍯 ☕ 🍵 🥤 🧃 🍹 🍺 🍷 🥂'],
+  ['⚽', '⚽ 🏀 🏈 ⚾ 🎾 🏐 🎱 🏓 🥊 🎯 🎮 🕹️ 🎲 🧩 🎨 🎬 🎤 🎧 🎸 🎹 🥁 🎁 🎈 🎉 🎊 🏆 🥇 🥈 🥉 🏅 📱 💻 ⌚ 📷 📸 🎥 📺 🔋 💡 📚 📖 ✏️ 💰 💵 💳 💎 🔑 🔒 🚗 🚕 🚌 ✈️ 🚀 🚢 🏠 🏡 🕌 ⛺']
+];
+
+function showEmo(i) {
+  [...$('emoTabs').children].forEach((b, j) => b.classList.toggle('on', i === j));
+  const g = $('emoGrid'); g.innerHTML = ''; g.scrollTop = 0;
+  EMO[i][1].split(' ').forEach(e => {
+    const b = document.createElement('button');
+    b.textContent = e;
+    b.onclick = () => insertEmoji(e);
+    g.appendChild(b);
+  });
+}
+function buildEmoji() {
+  const tabs = $('emoTabs');
+  EMO.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.textContent = c[0];
+    b.onclick = () => showEmo(i);
+    tabs.appendChild(b);
+  });
+  showEmo(0);
+}
+function insertEmoji(e) {
+  const t = $('txt');
+  const s = t.selectionStart == null ? t.value.length : t.selectionStart;
+  const en = t.selectionEnd == null ? s : t.selectionEnd;
+  t.value = t.value.slice(0, s) + e + t.value.slice(en);
+  const p = s + e.length;
+  t.setSelectionRange(p, p);
+}
+$('emoBtn').onclick = () => $('emo').classList.toggle('hidden');
+buildEmoji();
+
+function isBigEmoji(text) {
+  return text.length <= 12 && /^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f|\s)+$/u.test(text);
+}
+
+/* ---------- الصور ---------- */
+function compressImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const s = Math.min(1, 1000 / Math.max(img.width, img.height));
+      let w = Math.round(img.width * s), h = Math.round(img.height * s), q = .75, out = '';
+      const c = document.createElement('canvas');
+      const ctx = c.getContext('2d');
+      for (let i = 0; i < 8; i++) {
+        c.width = w; c.height = h;
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        out = c.toDataURL('image/jpeg', q);
+        if (out.length < 450000) break;
+        w = Math.round(w * .8); h = Math.round(h * .8); q = Math.max(.5, q - .05);
+      }
+      if (out.length > 900000) return rej(new Error('big'));
+      res({ url: out, w, h });
+    };
+    img.onerror = () => rej(new Error('bad'));
+    img.src = url;
+  });
+}
+$('imgBtn').onclick = () => $('file').click();
+$('file').onchange = async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f || !active) return;
+  if (!f.type.startsWith('image/')) { alert('اختار صورة'); return; }
+  try {
+    const r = await compressImage(f);
+    sendPayload({ text: '', image: r.url, w: r.w, h: r.h });
+  } catch (err) { alert('مقدرتش أجهّز الصورة، جرّب صورة تانية'); }
+};
+
+function openLightbox(src) { $('lbImg').src = src; $('lb').classList.remove('hidden'); }
+$('lb').onclick = () => { $('lb').classList.add('hidden'); $('lbImg').src = ''; };
 
 /* ---------- حالة الإنترنت ---------- */
 function netState() { $('net').classList.toggle('hidden', navigator.onLine); }
