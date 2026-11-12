@@ -343,7 +343,7 @@ async function addFriend() {
     }
     $('sUser').value = '';
     openChat(id, fid, fname);
-  } catch (e) { msg.textContent = 'مقدرتش أبحث، تأكد من النت'; console.error(e); }
+  } catch (e) { msg.textContent = 'مقدرتش أبحث (' + (e.code || e.message) + ')'; console.error(e); }
 }
 
 /* ---------- المحادثة ---------- */
